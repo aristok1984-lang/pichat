@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="188"
+     height="188"
+     viewBox="-94 -94 188 188">
+    <rect x="-94" y="-94" width="188" height="188" fill="#07111F"/>
+    <rect x="-90" y="-90"
+          width="180"
+          height="180"
+          fill="none"
+          stroke="#FFFFFF"
+          stroke-width="4"
+          shape-rendering="geometricPrecision"/>
+    <circle cx="0"
+            cy="0"
+            r="82"
+            fill="none"
+            stroke="#FFFFFF"
+            stroke-width="3.5"
+            shape-rendering="geometricPrecision"/>
+    <g fill="#FFFFFF" shape-rendering="crispEdges">
+        <rect x="-30" y="-45" width="60" height="7"/>
+        <rect x="-30" y="-45" width="7" height="90"/>
+        <rect x="23" y="-45" width="7" height="90"/>
+    </g>
+</svg>
