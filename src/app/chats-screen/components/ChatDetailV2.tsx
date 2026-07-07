@@ -937,12 +937,13 @@ export default function ChatDetailV2({ conversation, currentUserId, onBack }: Ch
           // Message from another device/tab — replace optimistic or add if missing
           setMessages(prev => {
             if (prev.find(m => m.id === mapped.id)) return prev;
-            const optIdx = prev.findLastIndex(
+            const optIdx = [...prev].reverse().findIndex(
               m => m.id.startsWith('opt-') && m.content === mapped.content && m.isSelf
             );
-            if (optIdx !== -1) {
+            const realIdx = optIdx !== -1 ? prev.length - 1 - optIdx : -1;
+            if (realIdx !== -1) {
               const next = [...prev];
-              next[optIdx] = mapped;
+              next[realIdx] = mapped;
               return next;
             }
             return [...prev, mapped];
@@ -1292,7 +1293,19 @@ export default function ChatDetailV2({ conversation, currentUserId, onBack }: Ch
     : 'last seen recently';
 
   return (
-    <div className="flex flex-col" style={{ background: BG, fontFamily: 'Inter, sans-serif', height: '100%', overflow: 'hidden' }}>
+    <div
+      className="flex flex-col"
+      style={{
+        background: BG,
+        fontFamily: 'Inter, sans-serif',
+        height: '100%',
+        minHeight: 0,
+        flex: '1 1 0',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {/* Hidden file inputs */}
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleCameraCapture} />

@@ -106,6 +106,12 @@ export default function ChatsScreen() {
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
   const channelRef = useRef<any>(null);
+  const onlineUsersRef = useRef<Set<string>>(new Set());
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    onlineUsersRef.current = onlineUsers;
+  }, [onlineUsers]);
 
   // ── Fetch conversations ───────────────────────────────────────────────────
   const fetchConversations = useCallback(async () => {
@@ -136,6 +142,9 @@ export default function ChatsScreen() {
 
       const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
 
+      // Use ref to avoid stale closure on onlineUsers
+      const currentOnlineUsers = onlineUsersRef.current;
+
       const mapped: ConversationItem[] = (convData || []).map((c: any) => {
         const otherId = c.participant_one === user.id ? c.participant_two : c.participant_one;
         const profile = profileMap.get(otherId);
@@ -151,7 +160,7 @@ export default function ChatsScreen() {
           lastMessageAt: c.last_message_at || c.created_at,
           lastMessageSenderId: c.last_message_sender_id,
           unreadCount: unread,
-          isOnline: otherId === DEMO_BOT_ID ? true : onlineUsers.has(otherId),
+          isOnline: otherId === DEMO_BOT_ID ? true : currentOnlineUsers.has(otherId),
           avatarColor: getAvatarColor(otherId),
           isGroup: false as const,
         };
@@ -161,22 +170,20 @@ export default function ChatsScreen() {
       const hasDemoBot = mapped.some(c => c.otherUserId === DEMO_BOT_ID);
       if (!hasDemoBot) {
         const demoBotProfile = profileMap.get(DEMO_BOT_ID);
-        if (demoBotProfile) {
-          mapped.unshift({
-            id: `demo-conv-${user.id}`,
-            otherUserId: DEMO_BOT_ID,
-            otherUserName: demoBotProfile.display_name || 'PiChat Demo',
-            otherUserAvatar: demoBotProfile.avatar_url || undefined,
-            otherUserUsername: demoBotProfile.username || 'pichat_demo',
-            otherUserVerified: true,
-            lastMessage: 'Send me a message to test the chat!',
-            lastMessageAt: new Date().toISOString(),
-            unreadCount: 0,
-            isOnline: true,
-            avatarColor: '#2AABEE',
-            isGroup: false as const,
-          });
-        }
+        mapped.unshift({
+          id: `demo-conv-${user.id}`,
+          otherUserId: DEMO_BOT_ID,
+          otherUserName: demoBotProfile?.display_name || 'PiChat Demo',
+          otherUserAvatar: demoBotProfile?.avatar_url || undefined,
+          otherUserUsername: demoBotProfile?.username || 'pichat_demo',
+          otherUserVerified: true,
+          lastMessage: 'Send me a message to test the chat!',
+          lastMessageAt: new Date().toISOString(),
+          unreadCount: 0,
+          isOnline: true,
+          avatarColor: '#2AABEE',
+          isGroup: false as const,
+        });
       }
 
       setConversations(mapped);
@@ -185,7 +192,7 @@ export default function ChatsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user, supabase, onlineUsers]);
+  }, [user, supabase]);
 
   // ── Fetch group chats ─────────────────────────────────────────────────────
   const fetchGroupChats = useCallback(async () => {
