@@ -1293,7 +1293,19 @@ export default function ChatDetailV2({ conversation, currentUserId, onBack }: Ch
     : 'last seen recently';
 
   return (
-    <div className="flex flex-col" style={{ background: BG, fontFamily: 'Inter, sans-serif', height: '100%', overflow: 'hidden' }}>
+    <div
+      className="flex flex-col"
+      style={{
+        background: BG,
+        fontFamily: 'Inter, sans-serif',
+        height: '100%',
+        minHeight: 0,
+        flex: '1 1 0',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {/* Hidden file inputs */}
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleCameraCapture} />

@@ -7,7 +7,7 @@ interface MobileFrameProps {
 export default function MobileFrame({ children }: MobileFrameProps) {
   return (
     <div
-      className="w-full min-h-screen flex flex-col overflow-hidden relative"
+      className="w-full h-screen flex flex-col overflow-hidden relative"
       style={{ background: 'var(--background)' }}
     >
       {children}
