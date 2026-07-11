@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
@@ -22,9 +22,7 @@ interface UserProfile {
   following_count: number;
   posts_count: number;
   is_verified: boolean;
-  is_founder?: boolean;
   is_admin?: boolean;
-  is_moderator?: boolean;
   created_at: string;
 }
 
@@ -44,14 +42,15 @@ function formatJoinDate(dateStr: string) {
 
 export default function PublicProfilePage({ username }: { username: string }) {
   const router = useRouter();
+  const supabaseRef = useRef(createClient());
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'reels' | 'media'>('posts');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [fullscreenAvatar, setFullscreenAvatar] = useState(false);
   const [fullscreenBanner, setFullscreenBanner] = useState(false);
   const [showBioModal, setShowBioModal] = useState(false);
-  const supabase = createClient();
 
   useEffect(() => {
     const prev = document.body.style.background;
@@ -61,12 +60,25 @@ export default function PublicProfilePage({ username }: { username: string }) {
 
   const fetchProfile = useCallback(async () => {
     try {
-      const { data: profileData } = await supabase.from('user_profiles').select('*').eq('username', username).single();
-      if (!profileData) return;
+      setLoading(true);
+      const supabase = supabaseRef.current;
+      const { data: profileData } = await supabase
+        .from('user_profiles')
+        .select('id, username, display_name, full_name, bio, avatar_url, banner_url, occupation, location, birthplace, studied_at, went_to, x_account, followers_count, following_count, posts_count, is_verified, is_admin, created_at')
+        .eq('username', username)
+        .single();
+      if (!profileData) { setLoading(false); return; }
       setProfile(profileData);
-      const { data: postsData } = await supabase.from('posts').select('*').eq('author_id', profileData.id).order('created_at', { ascending: false }).limit(20);
+      const { data: postsData } = await supabase
+        .from('posts')
+        .select('id, content, image_url, likes_count, comments_count, reposts_count, created_at')
+        .eq('author_id', profileData.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
       if (postsData) setPosts(postsData);
-    } catch { /* silent */ }
+    } catch { /* silent */ } finally {
+      setLoading(false);
+    }
   }, [username]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
@@ -86,7 +98,7 @@ export default function PublicProfilePage({ username }: { username: string }) {
     try { navigator.clipboard.writeText(text); } catch { /* silent */ }
   }
 
-  const displayName = profile?.display_name || profile?.full_name || profile?.username || 'User';
+  const displayName = profile?.display_name || profile?.full_name || profile?.username || username;
   const handle = profile?.username ? `@${profile.username}` : `@${username}`;
   const mediaPosts = posts.filter(p => p.image_url);
 
@@ -159,7 +171,29 @@ export default function PublicProfilePage({ username }: { username: string }) {
     .pp-hbtn{display:flex;align-items:center;gap:5px;background:#131D2B;border:.5px solid #2A3648;border-radius:2px;color:#B0C4D8;font-family:'Inter',sans-serif;font-size:13px;font-weight:300;letter-spacing:.04em;padding:7px 14px;cursor:pointer}
     .pp-hbtn-block{background:#131D2B;border:1px solid #C0392B;border-radius:2px;color:#B0C4D8;font-family:'Inter',sans-serif;font-size:13px;font-weight:300;letter-spacing:.04em;padding:7px 14px;cursor:pointer}
     .pp-bio-modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:linear-gradient(160deg,#1A2D42 0%,#0D1E2E 100%);border:.5px solid #2A3648;border-radius:2px;display:flex;flex-direction:column;z-index:100;box-shadow:0 8px 28px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05);width:300px;max-width:88vw;overflow:hidden}
+    .pp-loading{display:flex;align-items:center;justify-content:center;height:200px;color:#5C6D82;font-size:13px;font-weight:300;letter-spacing:.08em}
   `;
+
+  if (loading) {
+    return (
+      <>
+        <style dangerouslySetInnerHTML={{ __html: css }} />
+        <div className="pp-wrap">
+          <div className="pp-card">
+            <div className="pp-hdr">
+              <div className="pp-hdr-l">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EDE8E0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}} onClick={() => router.back()}>
+                  <path d="M15 18l-6-6 6-6"/>
+                </svg>
+                <h1>Profile</h1>
+              </div>
+            </div>
+            <div className="pp-loading">Loading profile…</div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -221,18 +255,8 @@ export default function PublicProfilePage({ username }: { username: string }) {
               <div className="pp-name">{displayName}</div>
               <div className="pp-handle">{handle}</div>
             </div>
-            <div className="pp-role-badges">
-              {profile?.is_founder && (
-                <div className="pp-rbadge-wrap">
-                  <div className="pp-rbadge" style={{border:'1.2px solid #C9A84C'}}>
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#C9A84C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                    </svg>
-                  </div>
-                  <span className="pp-rlbl" style={{color:'#C9A84C'}}>Founder</span>
-                </div>
-              )}
-              {profile?.is_admin && (
+            {profile?.is_admin && (
+              <div className="pp-role-badges">
                 <div className="pp-rbadge-wrap">
                   <div className="pp-rbadge" style={{border:'1.2px solid #2A97DF'}}>
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2A97DF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -241,19 +265,8 @@ export default function PublicProfilePage({ username }: { username: string }) {
                   </div>
                   <span className="pp-rlbl" style={{color:'#2A97DF'}}>Admin</span>
                 </div>
-              )}
-              {profile?.is_moderator && (
-                <div className="pp-rbadge-wrap">
-                  <div className="pp-rbadge" style={{border:'1.2px solid #3CB371'}}>
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#3CB371" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                      <polyline points="9 12 11 14 15 10"/>
-                    </svg>
-                  </div>
-                  <span className="pp-rlbl" style={{color:'#3CB371'}}>Mod</span>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* BIO BLOCK */}
@@ -265,7 +278,7 @@ export default function PublicProfilePage({ username }: { username: string }) {
               LOCATION &nbsp;|&nbsp; <span style={{color:'#EDE8E0',fontWeight:400}}>{profile?.location || 'Athens, Greece'}</span>
             </div>
             <div className="pp-btxt">
-              <strong>BIO:</strong> {profile?.bio || 'Founder of Human System Publishing and creator of PiChat. Building community-driven platforms that connect people, knowledge, and technology. Author of The Human System and the Chosen One. Exploring the architecture of the Human System — symbols, power dynamics, and the making of the Chosen One.'}
+              <strong>BIO:</strong> {profile?.bio || 'No bio yet.'}
             </div>
             <div className="pp-bfoot">
               <span className="pp-bjoin">
@@ -287,7 +300,7 @@ export default function PublicProfilePage({ username }: { username: string }) {
               </div>
               <div className="pp-dc" style={{flexDirection:'column',alignItems:'flex-start',padding:'14px 16px'}}>
                 <span style={{fontSize:'13px',fontWeight:400,lineHeight:1.65,color:'#EDE8E0',textAlign:'left'}}>
-                  {profile?.bio || 'Founder of Human System Publishing and creator of PiChat. Building community-driven platforms that connect people, knowledge, and technology. Author of The Human System and the Chosen One. Exploring the architecture of the Human System — symbols, power dynamics, and the making of the Chosen One.'}
+                  {profile?.bio || 'No bio yet.'}
                 </span>
               </div>
             </div>
